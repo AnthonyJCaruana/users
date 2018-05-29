@@ -1,7 +1,7 @@
 # User Maintenance
 
-A high level library and REST API for user management using REDIS as the storage engine released under the GPLv3 licence written in the GO
-language whicgh has excellent support out of the box for servers and a good set of cryptograhic libraries.
+A high level library and REST API for the management of system users released under the GPLv3 licence written in the GO language which 
+has excellent support out of the box for servers and a good set of cryptograhic libraries.
 
 This library and service was originally writen for a web site for managing various software settings on an IOT device running on an ARM v7 proccesor with Ubuntu Linux as the underlying operating system. I only wanted authorised users to have access so I needed a way of allowing them to login to the system in a secure manner and manage other users as well as reset passwords and change email addresses.
 
