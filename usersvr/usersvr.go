@@ -31,12 +31,12 @@ var (
 )
 
 /* The following routes and methods are supported:
-   # /users/ 			=> 	GET retreives all users
-   # /users/ 			=>	POST adds a specific user by name
+   # /users/ 				=> 	GET retreives all users
+   # /users/ 				=>	POST adds a specific user by name
    # /users/{username}		=> 	GET retreives a specific user by name
    # /email/{username}		=> 	PUT updates email for a specific user by name
    # /password/{username}	=> 	PUT updates password for a specific user by name
-   # /login/ 			=> 	POST validates user name and password
+   # /login/ 				=> 	POST validates user name and password
 */
 func main() {
 
@@ -52,10 +52,19 @@ func main() {
 	mux.HandleFunc("/password/{username}", passwordHandler)
 	mux.HandleFunc("/login/", loginHandler)
 
-	// configure and launch http server
 	fmt.Printf("\n>> Server listening on [%d]", port)
 	fmt.Printf("\n>> Press <Ctr-C> to quit...\n")
-	srv := &http.Server{Addr: url, Handler: mux}
+
+	// configure timeouts, url + port and default router
+	srv := &http.Server{
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Addr:         url,
+		Handler:      mux,
+	}
+
+	// launch http server
 	go func() {
 		srv.ListenAndServe()
 	}()
@@ -64,9 +73,9 @@ func main() {
 	<-stopChan
 	fmt.Println("\n>> Server shutting down...")
 
-	// shut down server in a graceful fashion
+	// shut down server gracefully
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	cancel()
 	srv.Shutdown(ctx)
 	fmt.Println(">> Server stopped!")
 	fmt.Println("")
