@@ -31,12 +31,12 @@ var (
 )
 
 /* The following routes and methods are supported:
-   # /users/ 				=> 	GET retreives all users
-   # /users/ 				=>	POST adds a specific user by name
+   # /users/ 			=> 	GET retreives all users
+   # /users/ 			=>	POST adds a specific user by name
    # /users/{username}		=> 	GET retreives a specific user by name
    # /email/{username}		=> 	PUT updates email for a specific user by name
    # /password/{username}	=> 	PUT updates password for a specific user by name
-   # /login/ 				=> 	POST validates user name and password
+   # /login/ 			=> 	POST validates user name and password
 */
 func main() {
 
