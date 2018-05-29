@@ -1,4 +1,5 @@
-# users
+# User Maintenance
+
 A high level library and REST API for user management using REDIS as the storage engine released under the GPLv3 licence written in the GO
 language whicgh has excellent support out of the box for servers and a good set of cryptograhic libraries.
 
