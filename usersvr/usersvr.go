@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"lynx/user"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,12 +32,12 @@ var (
 )
 
 /* The following routes and methods are supported:
-   # /users/ 			=> 	GET retreives all users
-   # /users/ 			=>	POST adds a specific user by name
-   # /users/{username}		=> 	GET retreives a specific user by name
-   # /email/{username}		=> 	PUT updates email for a specific user by name
-   # /password/{username}	=> 	PUT updates password for a specific user by name
-   # /login/ 			=> 	POST validates user name and password
+   # /users/                =>  GET retreives all users
+   # /users/                =>  POST adds a specific user by name
+   # /users/{username}      =>  sGET retreives a specific user by name
+   # /email/{username}      =>  PUT updates email for a specific user by name
+   # /password/{username}   =>  PUT updates password for a specific user by name
+   # /login/                =>  POST validates user name and password
 */
 func main() {
 
@@ -83,10 +84,17 @@ func main() {
 
 func userHandler(w http.ResponseWriter, r *http.Request) {
 
+	// Create request Trace ID and write common response headers
 	guid, _ := guid()
+	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
 	writeResponseHeaders(w)
 
-	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
+	// Check for HMAC Authentication token
+	if checkAuthorization(r) == false {
+		fmt.Printf("\t[%v]\tERROR [%s]\n", guid, r.RemoteAddr+" => "+http.StatusText(http.StatusUnauthorized))
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
 
 	switch r.Method {
 
@@ -124,10 +132,17 @@ func userHandler(w http.ResponseWriter, r *http.Request) {
 
 func usersHandler(w http.ResponseWriter, r *http.Request) {
 
+	// Create request Trace ID and write common response headers
 	guid, _ := guid()
+	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
 	writeResponseHeaders(w)
 
-	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
+	// Check for HMAC Authentication token
+	if checkAuthorization(r) == false {
+		fmt.Printf("\t[%v]\tERROR [%s]\n", guid, r.RemoteAddr+" => "+http.StatusText(http.StatusUnauthorized))
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
 
 	switch r.Method {
 
@@ -197,10 +212,17 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 
 func emailHandler(w http.ResponseWriter, r *http.Request) {
 
+	// Create request Trace ID and write common response headers
 	guid, _ := guid()
+	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
 	writeResponseHeaders(w)
 
-	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
+	// Check for HMAC Authentication token
+	if checkAuthorization(r) == false {
+		fmt.Printf("\t[%v]\tERROR [%s]\n", guid, r.RemoteAddr+" => "+http.StatusText(http.StatusUnauthorized))
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
 
 	switch r.Method {
 
@@ -258,10 +280,17 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 
 func passwordHandler(w http.ResponseWriter, r *http.Request) {
 
+	// Create request Trace ID and write common response headers
 	guid, _ := guid()
+	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
 	writeResponseHeaders(w)
 
-	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
+	// Check for HMAC Authentication token
+	if checkAuthorization(r) == false {
+		fmt.Printf("\t[%v]\tERROR [%s]\n", guid, r.RemoteAddr+" => "+http.StatusText(http.StatusUnauthorized))
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
 
 	switch r.Method {
 
@@ -319,10 +348,17 @@ func passwordHandler(w http.ResponseWriter, r *http.Request) {
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 
+	// Create request Trace ID and write common response headers
 	guid, _ := guid()
+	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
 	writeResponseHeaders(w)
 
-	fmt.Printf("\n\t[%v]\tReceieved %s request...\n", guid, r.Method)
+	// Check for HMAC Authentication token
+	if checkAuthorization(r) == false {
+		fmt.Printf("\t[%v]\tERROR [%s]\n", guid, r.RemoteAddr+" => "+http.StatusText(http.StatusUnauthorized))
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
 
 	switch r.Method {
 
@@ -372,6 +408,7 @@ func writeResponseHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Transfer-Encoding", "base64")
 }
+
 func guid() (r string, e error) {
 
 	b := make([]byte, 16)
@@ -381,4 +418,44 @@ func guid() (r string, e error) {
 	}
 
 	return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), err
+}
+
+func checkAuthorization(r *http.Request) bool {
+
+	// If we are NOT local we MUST have an Authorization header present
+	if isLocal(r) == false && len(r.Header.Get("Authorization")) == 0 {
+		return false
+	}
+
+	// If the  Authorization header present	it MUST be valid
+	return true
+}
+
+func isLocal(r *http.Request) bool {
+
+	ip, _, err := parseIP(r.RemoteAddr)
+	if err != nil {
+		return false
+	}
+
+	if ip == "127.0.0.1" || ip == "::1" {
+		return true
+	}
+
+	return false
+}
+
+func parseIP(s string) (ip string, port string, err error) {
+
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return "", "", errors.New("Invalid IP")
+	}
+
+	ipv4 := net.ParseIP(host)
+	if ipv4 == nil {
+		return "", "", errors.New("Invalid IP")
+	}
+
+	return ipv4.String(), port, nil
 }
