@@ -11,6 +11,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -21,10 +22,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 )
+
+type ipRange struct {
+	start net.IP
+	end   net.IP
+}
 
 var (
 	url  = "0.0.0.0:50001"
@@ -433,12 +440,18 @@ func checkAuthorization(r *http.Request) bool {
 
 func isLocal(r *http.Request) bool {
 
-	ip, _, err := parseIP(r.RemoteAddr)
-	if err != nil {
-		return false
+	// Check to see if request was forwarded via a proxy or load balancer
+	// Otherwise just use the rmeote ip address from the request object
+	remoteAddr := getForwardedAddress(r)
+	if len(remoteAddr) == 0 {
+		ip, _, err := parseIP(r.RemoteAddr)
+		if len(ip) == 0 || err != nil {
+			return false
+		}
+		remoteAddr = ip
 	}
 
-	if ip == "127.0.0.1" || ip == "::1" {
+	if remoteAddr == "127.0.0.1" || remoteAddr == "::1" {
 		return true
 	}
 
@@ -458,4 +471,73 @@ func parseIP(s string) (ip string, port string, err error) {
 	}
 
 	return ipv4.String(), port, nil
+}
+
+func getForwardedAddress(r *http.Request) string {
+
+	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
+		addresses := strings.Split(r.Header.Get(h), ",")
+		// march from right to left until we get a public address
+		// that will be the address right before our proxy.
+		for i := len(addresses) - 1; i >= 0; i-- {
+			ip := strings.TrimSpace(addresses[i])
+			// header can contain spaces too, strip those out.
+			realIP := net.ParseIP(ip)
+			if !realIP.IsGlobalUnicast() || isPrivateSubnet(realIP) {
+				// bad address, go to next
+				continue
+			}
+			return ip
+		}
+	}
+	return ""
+}
+
+func isPrivateSubnet(ipAddress net.IP) bool {
+	// my use case is only concerned with ipv4 atm
+	if ipCheck := ipAddress.To4(); ipCheck != nil {
+		// iterate over all our ranges
+		for _, r := range privateRanges {
+			// check if this ip is in a private range
+			if inRange(r, ipAddress) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func inRange(r ipRange, ipAddress net.IP) bool {
+	// strcmp type byte comparison
+	if bytes.Compare(ipAddress, r.start) >= 0 && bytes.Compare(ipAddress, r.end) < 0 {
+		return true
+	}
+	return false
+}
+
+var privateRanges = []ipRange{
+	ipRange{
+		start: net.ParseIP("10.0.0.0"),
+		end:   net.ParseIP("10.255.255.255"),
+	},
+	ipRange{
+		start: net.ParseIP("100.64.0.0"),
+		end:   net.ParseIP("100.127.255.255"),
+	},
+	ipRange{
+		start: net.ParseIP("172.16.0.0"),
+		end:   net.ParseIP("172.31.255.255"),
+	},
+	ipRange{
+		start: net.ParseIP("192.0.0.0"),
+		end:   net.ParseIP("192.0.0.255"),
+	},
+	ipRange{
+		start: net.ParseIP("192.168.0.0"),
+		end:   net.ParseIP("192.168.255.255"),
+	},
+	ipRange{
+		start: net.ParseIP("198.18.0.0"),
+		end:   net.ParseIP("198.19.255.255"),
+	},
 }
