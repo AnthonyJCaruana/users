@@ -339,7 +339,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Proceed to update password for this user
+		// Attempt to login using the suplied credentials
 		err = user.Login(newUser.Name, newUser.Password)
 		if err != nil {
 			fmt.Printf("\t[%v]\tERROR [%s]\n", guid, err.Error())
@@ -347,9 +347,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// OK so return the JSON user object to the caller
+		// OK return success to the caller
 		fmt.Printf("\t[%v]\t%s\n", guid, "Request succesful")
-		//fmt.Fprint(w, result)
 
 	default:
 		fmt.Printf("\t[%v]\tERROR [405 method not allowed]\n", guid)
